@@ -8,7 +8,7 @@ This API reference documents the exports from the `apollo-server` package.
 
 ## `class ApolloServer`
 
-The core of an Apollo Server implementation. For an example, see [Get started with Apollo Server](/getting-started/).
+The core of an Apollo Server implementation. For an example, see [Get started with Apollo Server](../getting-started/).
 
 ### Methods
 
