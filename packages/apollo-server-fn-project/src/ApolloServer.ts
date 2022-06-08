@@ -14,7 +14,7 @@ export interface CreateHandlerOptions {
     maxAge?: number;
   };
   disableHealthCheck?: boolean;
-  onHealthCheck?: (req: any) => Promise<any>; // TODO
+  onHealthCheck?: (req: Context) => Promise<any>;
 }
 
 export type Headers = Record<string, any>;
@@ -33,10 +33,9 @@ export class ApolloServer extends ApolloServerBase {
   // provides typings for the integration specific behavior, ideally this would
   // be propagated with a generic to the super class
   createGraphQLServerOptions(
-    request: any, // TODO
-    context: HTTPGatewayContext,
+    context: Context,
   ): Promise<GraphQLOptions> {
-    return super.graphQLServerOptions({ request, context });
+    return super.graphQLServerOptions({ context });
   }
 
   public createHandler({
@@ -95,25 +94,19 @@ export class ApolloServer extends ApolloServerBase {
         landingPage = this.getLandingPage();
       }
 
-      const hctx = context.httpGateway;
-      console.log(`handle ${hctx.method}`);
+      const hctx: HTTPGatewayContext = context.httpGateway;
       const corsHeaders: Headers = { ...staticCorsHeaders };
       const originHeader = hctx.getHeader('origin');
 
       const handleResponse = ({ body, status = 200, headers = {} }: ResponseObject) => {
-        // TODO check for body is error or unknown
-        console.log(`handleResponse ${hctx.method} ${status}`)
         hctx.statusCode = status;
         headers = {
           ...headers,
           ...corsHeaders
         }
-        console.log("headers", headers);
         for (const [key, value] of Object.entries(headers)) {
           hctx.setResponseHeader(key, value);
         }
-        console.log(`returning response for ${hctx.method} ${status}`)
-        console.log((body as any)?.length ?? 0)
         return body ?? undefined;
       }
 
@@ -147,7 +140,7 @@ export class ApolloServer extends ApolloServerBase {
 
         if (onHealthCheck) {
           try {
-            await onHealthCheck(input);
+            await onHealthCheck(context);
             return handleResponse(successfulResponse);
           } catch {
             return handleResponse({
@@ -201,12 +194,10 @@ export class ApolloServer extends ApolloServerBase {
         });
       }
 
-      const gqlFnFun = graphqlFnFunction(async () => {
-        return this.createGraphQLServerOptions(input, hctx);
-      }, this.csrfPreventionRequestHeaders)
+      const response = await graphqlFnFunction(async () => {
+        return this.createGraphQLServerOptions(context);
+      }, this.csrfPreventionRequestHeaders)(input, context);
 
-      const response = await gqlFnFun(input, context);
-      console.log("got response from gqlFnFun", response.body)
       return handleResponse(response);
     });
   }
